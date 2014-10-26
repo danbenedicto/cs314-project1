@@ -85,6 +85,8 @@ static int digit();
 /*************************************************************************/
 static int digit()
 {
+    /* DIGIT ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 */
+
 	int reg;
 
 	if (!is_digit(token)) {
@@ -99,22 +101,50 @@ static int digit()
 
 static int variable()
 {
-	/* YOUR CODE GOES HERE */
+	/* VARIABLE ::= a | b | c | d */
+
+	/* only use variable() for retrieving a value (not for storing) */
+	int reg;
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+	reg = next_register();
+	CodeGen(LOAD, reg, token, EMPTY_FIELD);
+	next_token();
+	return reg;
 }
 
 static int expr()
 {
+	/* EXPR ::= + EXPR EXPR | - EXPR EXPR | * EXPR EXPR | VARIABLE | DIGIT */
+
 	int reg, left_reg, right_reg;
+	OpCode op;
 
 	switch (token) {
 	case '+':
+	case '-':
+	case '*':
+		if (token == '+') {
+			op = ADD;
+		} else if (token == '-'){
+			op = SUB;
+		} else {
+			op = MUL;
+		}
 		next_token();
 		left_reg = expr();
 		right_reg = expr();
 		reg = next_register();
-		CodeGen(ADD, reg, left_reg, right_reg);
+		CodeGen(op, reg, left_reg, right_reg);
 		return reg;
-	/* YOUR CODE GOES HERE */
+	case 'a':
+	case 'b':
+	case 'c':
+	case 'd':
+		return variable();
 	case '0':
 	case '1':
 	case '2':
@@ -134,45 +164,168 @@ static int expr()
 
 static void assign()
 {
-	/* YOUR CODE GOES HERE */
+	/* ASSIGN ::= VARIABLE = EXPR */
+
+	int result_reg;
+	char id;
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+
+	id = token;
+	next_token();
+
+	if (token != '=') {
+		ERROR("Expected =\n");
+		exit(EXIT_FAILURE);
+	}
+
+	next_token();
+
+	result_reg = expr();
+
+	CodeGen(STORE, id, result_reg, EMPTY_FIELD);
 }
 
 static void swap()
 {
-	/* YOUR CODE GOES HERE */
+	/* SWAP  ::= % VARIABLE VARIABLE */
+
+	int first_reg, second_reg;
+	char first_var, second_var;
+
+	if (token != '%') {
+		ERROR("Expected %%\n");
+		exit(EXIT_FAILURE);
+	}
+
+	next_token();
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+
+	first_var = token;
+	next_token();
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+
+	second_var = token;
+	next_token();
+
+	first_reg = next_register();
+	second_reg = next_register();
+
+	CodeGen(LOAD, first_reg, first_var, EMPTY_FIELD);
+	CodeGen(LOAD, second_reg, second_var, EMPTY_FIELD);
+	CodeGen(STORE, first_var, second_reg, EMPTY_FIELD);
+	CodeGen(STORE, second_var, first_reg, EMPTY_FIELD);
 }
 
 static void read()
 {
-	/* YOUR CODE GOES HERE */
+	/* READ  ::= & VARIABLE */
+
+	if (token != '&') {
+		ERROR("Expected &\n");
+		exit(EXIT_FAILURE);
+	}
+
+	next_token();
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+
+	CodeGen(READ, token, EMPTY_FIELD, EMPTY_FIELD);
+	next_token();
 }
 
 static void print()
 {
-	/* YOUR CODE GOES HERE */
+	/* PRINT ::= # VARIABLE */
+
+	if (token != '#') {
+		ERROR("Expected #\n");
+		exit(EXIT_FAILURE);
+	}
+
+	next_token();
+
+	if (!is_identifier(token)) {
+		ERROR("Expected identifier\n");
+		exit(EXIT_FAILURE);
+	}
+
+	CodeGen(WRITE, token, EMPTY_FIELD, EMPTY_FIELD);
+	next_token();
 }
 
 static void stmt()
 {
-	/* YOUR CODE GOES HERE */
+	/* STMT ::= ASSIGN | SWAP | READ | PRINT */
+
+	switch (token) {
+	case 'a':
+	case 'b':
+	case 'c':
+	case 'd':
+		assign();
+		return;
+	case '%':
+		swap();
+		return;
+	case '&':
+		read();
+		return;
+	case '#':
+		print();
+		return;
+	default:
+		ERROR("Symbol %c unknown\n", token);
+		exit(EXIT_FAILURE);
+	}
 }
 
 static void morestmts()
 {
-	/* YOUR CODE GOES HERE */
+	/* MORESTMTS ::= ; STMTLIST | epsilon */
+
+	if (token == '.') {
+		return;
+	}
+
+	if (token != ';') {
+		ERROR("Expected ;\n");
+		exit(EXIT_FAILURE);
+	}
+
+	next_token();
+
+	stmtlist();
 }
 
 static void stmtlist()
 {
-	/* YOUR CODE GOES HERE */
+	/* STMTLIST ::= STMT MORESTMTS */
+
+	stmt();
+	morestmts();
 }
 
 static void program()
 {
-	/* YOUR CODE GOES HERE */
-	/* the following call to expr() is to get you started */
-        /*       this needs to be changed to another call     */
-	expr();
+	/* PROGRAM ::= STMTLIST . */
+
+	stmtlist();
+
 	if (token != '.') {
 		ERROR("Program error.  Current input symbol is %c\n", token);
 		exit(EXIT_FAILURE);
