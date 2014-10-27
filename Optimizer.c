@@ -197,7 +197,38 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
-	/* YOUR CODE GOES HERE */
+	instr1 = head;
+
+	while (instr1 != NULL && (instr2 = instr1->next) != NULL && (instr3 = instr2->next) != NULL)
+	{
+		if (instr1->opcode != LOADI
+			|| instr2->opcode != LOADI
+			|| !(instr3->opcode == ADD || instr3->opcode == SUB || instr3->opcode == MUL)
+			|| instr1->field1 != instr3->field2
+			|| instr2->field1 != instr3->field3)
+		{
+			/* not constant-foldable */
+			instr1 = instr2;    /* advance window by one instruction */
+			continue;
+		}
+			
+		/* constant-foldable! */
+		int calculated = 0;
+		switch (instr3->opcode){
+		case ADD:
+			calculated = instr1->field2 + instr2->field2; break;
+		case SUB:
+			calculated = instr1->field2 - instr2->field2; break;
+		case MUL:
+			calculated = instr1->field2 * instr2->field2; break;
+		default:
+			break;	/* cannot happen (already checked in if statement) */
+		}
+
+		fold_instruction(instr3, LOADI, calculated, EMPTY_FIELD);
+		if (head == instr1) head = instr3;   /* move head if necessary */
+		instr1 = instr3->next;               /* advance window past fold */
+	}
 
 
 	PrintInstructionList(stdout, head);
